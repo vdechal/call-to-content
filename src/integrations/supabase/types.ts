@@ -14,7 +14,185 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      insights: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          end_time: number | null
+          id: string
+          is_starred: boolean | null
+          recording_id: string
+          speaker: string | null
+          start_time: number | null
+          text: string
+          type: Database["public"]["Enums"]["insight_type"]
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          end_time?: number | null
+          id?: string
+          is_starred?: boolean | null
+          recording_id: string
+          speaker?: string | null
+          start_time?: number | null
+          text: string
+          type: Database["public"]["Enums"]["insight_type"]
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          end_time?: number | null
+          id?: string
+          is_starred?: boolean | null
+          recording_id?: string
+          speaker?: string | null
+          start_time?: number | null
+          text?: string
+          type?: Database["public"]["Enums"]["insight_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insights_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_drafts: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          insight_id: string
+          is_edited: boolean | null
+          is_favorite: boolean | null
+          recording_id: string
+          tone: string | null
+          updated_at: string | null
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          insight_id: string
+          is_edited?: boolean | null
+          is_favorite?: boolean | null
+          recording_id: string
+          tone?: string | null
+          updated_at?: string | null
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          insight_id?: string
+          is_edited?: boolean | null
+          is_favorite?: boolean | null
+          recording_id?: string
+          tone?: string | null
+          updated_at?: string | null
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_drafts_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "insights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_drafts_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          email: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          email: string
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          email?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recordings: {
+        Row: {
+          created_at: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          file_path: string
+          file_size: number | null
+          filename: string
+          id: string
+          speaker_segments: Json | null
+          status: string | null
+          transcript_text: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          file_path: string
+          file_size?: number | null
+          filename: string
+          id?: string
+          speaker_segments?: Json | null
+          status?: string | null
+          transcript_text?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          file_path?: string
+          file_size?: number | null
+          filename?: string
+          id?: string
+          speaker_segments?: Json | null
+          status?: string | null
+          transcript_text?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +201,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      insight_type: "quote" | "pain_point" | "solution" | "proof"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +328,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      insight_type: ["quote", "pain_point", "solution", "proof"],
+    },
   },
 } as const
