@@ -3,41 +3,48 @@ import { Navbar } from "@/components/layout/Navbar";
 import { UploadZone } from "@/components/dashboard/UploadZone";
 import { TranscriptCard } from "@/components/dashboard/TranscriptCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileAudio, Clock, CheckCircle2 } from "lucide-react";
-
-// Mock data for demo
-const mockTranscripts = [
-  {
-    id: "1",
-    title: "Client Discovery Call - Acme Corp",
-    duration: "45:23",
-    date: "2 hours ago",
-    status: "ready" as const,
-    insights: 5,
-  },
-  {
-    id: "2", 
-    title: "Strategy Session - TechStart",
-    duration: "32:15",
-    date: "Yesterday",
-    status: "processing" as const,
-    insights: 0,
-  },
-  {
-    id: "3",
-    title: "Sales Call - Enterprise Lead",
-    duration: "28:47",
-    date: "3 days ago",
-    status: "ready" as const,
-    insights: 3,
-  },
-];
+import { FileAudio, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { useRecordings } from "@/hooks/useRecordings";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
+  const { recordings, loading, refetch } = useRecordings();
 
-  const readyTranscripts = mockTranscripts.filter((t) => t.status === "ready");
-  const processingTranscripts = mockTranscripts.filter((t) => t.status === "processing");
+  const readyRecordings = recordings.filter((r) => r.status === "ready");
+  const processingRecordings = recordings.filter((r) => 
+    r.status === "uploading" || r.status === "transcribing" || r.status === "analyzing"
+  );
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "--:--";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return "Just now";
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const mapRecordingToTranscript = (recording: typeof recordings[0]) => ({
+    id: recording.id,
+    title: recording.filename.replace(/\.[^/.]+$/, ""), // Remove extension
+    duration: formatDuration(recording.duration_seconds),
+    date: formatDate(recording.created_at),
+    status: (recording.status === "ready" ? "ready" : "processing") as "ready" | "processing",
+    insights: recording.insightCount,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +61,7 @@ export default function Dashboard() {
           </div>
 
           {/* Upload Section */}
-          <UploadZone />
+          <UploadZone onUploadComplete={refetch} />
 
           {/* Transcripts Section */}
           <section className="mt-12">
@@ -64,50 +71,72 @@ export default function Dashboard() {
                 <TabsList className="bg-secondary">
                   <TabsTrigger value="all" className="gap-2">
                     <FileAudio className="w-4 h-4" />
-                    All ({mockTranscripts.length})
+                    All ({recordings.length})
                   </TabsTrigger>
                   <TabsTrigger value="processing" className="gap-2">
                     <Clock className="w-4 h-4" />
-                    Processing ({processingTranscripts.length})
+                    Processing ({processingRecordings.length})
                   </TabsTrigger>
                   <TabsTrigger value="ready" className="gap-2">
                     <CheckCircle2 className="w-4 h-4" />
-                    Ready ({readyTranscripts.length})
+                    Ready ({readyRecordings.length})
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value="all" className="mt-0">
-                <div className="grid gap-4">
-                  {mockTranscripts.map((transcript) => (
-                    <TranscriptCard key={transcript.id} transcript={transcript} />
-                  ))}
+              {loading ? (
+                <div className="card-elevated p-12 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading your recordings...</p>
                 </div>
-              </TabsContent>
+              ) : (
+                <>
+                  <TabsContent value="all" className="mt-0">
+                    <div className="grid gap-4">
+                      {recordings.length > 0 ? (
+                        recordings.map((recording) => (
+                          <TranscriptCard 
+                            key={recording.id} 
+                            transcript={mapRecordingToTranscript(recording)} 
+                          />
+                        ))
+                      ) : (
+                        <EmptyState message="No calls uploaded yet. Upload your first recording above!" />
+                      )}
+                    </div>
+                  </TabsContent>
 
-              <TabsContent value="processing" className="mt-0">
-                <div className="grid gap-4">
-                  {processingTranscripts.length > 0 ? (
-                    processingTranscripts.map((transcript) => (
-                      <TranscriptCard key={transcript.id} transcript={transcript} />
-                    ))
-                  ) : (
-                    <EmptyState message="No calls are being processed" />
-                  )}
-                </div>
-              </TabsContent>
+                  <TabsContent value="processing" className="mt-0">
+                    <div className="grid gap-4">
+                      {processingRecordings.length > 0 ? (
+                        processingRecordings.map((recording) => (
+                          <TranscriptCard 
+                            key={recording.id} 
+                            transcript={mapRecordingToTranscript(recording)} 
+                          />
+                        ))
+                      ) : (
+                        <EmptyState message="No calls are being processed" />
+                      )}
+                    </div>
+                  </TabsContent>
 
-              <TabsContent value="ready" className="mt-0">
-                <div className="grid gap-4">
-                  {readyTranscripts.length > 0 ? (
-                    readyTranscripts.map((transcript) => (
-                      <TranscriptCard key={transcript.id} transcript={transcript} />
-                    ))
-                  ) : (
-                    <EmptyState message="No calls are ready yet" />
-                  )}
-                </div>
-              </TabsContent>
+                  <TabsContent value="ready" className="mt-0">
+                    <div className="grid gap-4">
+                      {readyRecordings.length > 0 ? (
+                        readyRecordings.map((recording) => (
+                          <TranscriptCard 
+                            key={recording.id} 
+                            transcript={mapRecordingToTranscript(recording)} 
+                          />
+                        ))
+                      ) : (
+                        <EmptyState message="No calls are ready yet" />
+                      )}
+                    </div>
+                  </TabsContent>
+                </>
+              )}
             </Tabs>
           </section>
         </div>
