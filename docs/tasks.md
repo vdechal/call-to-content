@@ -9,11 +9,47 @@
 
 | Decision | Choice |
 |----------|--------|
-| **Transcription API** | OpenAI Whisper via Lovable AI |
+| **Transcription API** | OpenAI Whisper (direct API) |
 | **AI Engine** | Lovable AI (Gemini/GPT-5 gateway) |
 | **Authentication** | Email/password only (MVP) |
-| **Speaker Diarization** | Essential for MVP |
+| **Speaker Diarization** | Planned for future (currently single speaker) |
 | **Upload Limits** | 60 min / 100MB max |
+
+---
+
+## Phase 1: Core Foundations ✅ COMPLETE
+
+### Task 1.1: Enable Lovable Cloud ✅
+### Task 1.2: Database Schema Setup ✅
+### Task 1.3: Storage Bucket Setup ✅
+### Task 1.4: Authentication Implementation ✅
+
+---
+
+## Phase 2: Transcription Workflow ✅ COMPLETE
+
+### Task 2.1: File Upload Pipeline ✅
+- Real file upload to Supabase Storage with progress tracking
+- File validation (type, size ≤100MB)
+- Create recording record in database
+- Trigger transcription automatically
+
+### Task 2.2: Transcription Edge Function ✅
+- Created `supabase/functions/transcribe/index.ts`
+- Downloads audio from storage, sends to OpenAI Whisper API
+- Stores transcript_text and speaker_segments in database
+- Updates status: uploading → transcribing → analyzing
+
+### Task 2.3: Insight Extraction Edge Function ✅
+- Created `supabase/functions/extract-insights/index.ts`
+- Uses Lovable AI (Gemini) to extract insights from transcript
+- Identifies quotes, pain_points, solutions, proof
+- Stores insights in database, updates recording status to ready
+
+### Task 2.4: Dashboard Integration ✅
+- Created `src/hooks/useRecordings.ts` for real data fetching
+- Updated Dashboard to display real recordings with status
+- Real-time updates via Supabase realtime subscriptions
 
 ---
 
