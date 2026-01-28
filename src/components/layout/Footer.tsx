@@ -18,15 +18,15 @@ export function Footer() {
           </p>
 
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="/" className="hover:text-foreground transition-colors">
+            <Link to="/privacy" className="hover:text-foreground transition-colors">
               Privacy
             </Link>
-            <Link to="/" className="hover:text-foreground transition-colors">
+            <Link to="/terms" className="hover:text-foreground transition-colors">
               Terms
             </Link>
-            <Link to="/" className="hover:text-foreground transition-colors">
+            <a href="mailto:hello@catchy.io" className="hover:text-foreground transition-colors">
               Contact
-            </Link>
+            </a>
           </div>
         </div>
       </div>
