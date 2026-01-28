@@ -54,7 +54,7 @@ serve(async (req) => {
       .single();
 
     if (recordingError || !recording) {
-      console.error("Recording fetch error:", recordingError);
+      console.error("Recording fetch error");
       return new Response(JSON.stringify({ error: "Recording not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -73,7 +73,7 @@ serve(async (req) => {
       .download(recording.file_path);
 
     if (downloadError || !fileData) {
-      console.error("Download error:", downloadError);
+      console.error("Download error");
       await supabase
         .from("recordings")
         .update({ status: "failed", error_message: "Failed to download audio file" })
@@ -104,7 +104,7 @@ serve(async (req) => {
     formData.append("response_format", "verbose_json");
     formData.append("timestamp_granularities[]", "segment");
 
-    console.log("Calling Whisper API for recording:", recording_id);
+    console.log("Starting transcription...");
 
     const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
@@ -115,13 +115,12 @@ serve(async (req) => {
     });
 
     if (!whisperResponse.ok) {
-      const errorText = await whisperResponse.text();
-      console.error("Whisper API error:", whisperResponse.status, errorText);
+      console.error("Transcription API error");
       await supabase
         .from("recordings")
         .update({ 
           status: "failed", 
-          error_message: `Transcription failed: ${whisperResponse.status}` 
+          error_message: "Transcription failed" 
         })
         .eq("id", recording_id);
       return new Response(JSON.stringify({ error: "Transcription failed" }), {
@@ -131,7 +130,7 @@ serve(async (req) => {
     }
 
     const whisperResult = await whisperResponse.json();
-    console.log("Whisper result received, segments:", whisperResult.segments?.length);
+    console.log("Transcription completed successfully");
 
     // Format speaker segments from Whisper response
     // Note: Whisper doesn't do diarization, so we'll mark as "Speaker 1" for now
@@ -158,14 +157,14 @@ serve(async (req) => {
       .eq("id", recording_id);
 
     if (updateError) {
-      console.error("Update error:", updateError);
+      console.error("Failed to save transcript");
       return new Response(JSON.stringify({ error: "Failed to save transcript" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("Transcription complete for recording:", recording_id);
+    console.log("Transcription saved successfully");
 
     return new Response(
       JSON.stringify({ 
@@ -178,9 +177,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Transcribe function error:", error);
+    console.error("Transcription processing error");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "An error occurred during transcription" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
