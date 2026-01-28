@@ -71,7 +71,7 @@ serve(async (req) => {
       .single();
 
     if (recordingError || !recording) {
-      console.error("Recording fetch error:", recordingError);
+      console.error("Recording fetch error");
       return new Response(JSON.stringify({ error: "Recording not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -98,7 +98,7 @@ serve(async (req) => {
       });
     }
 
-    console.log("Extracting insights for recording:", recording_id);
+    console.log("Starting insight extraction...");
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -148,8 +148,7 @@ serve(async (req) => {
     });
 
     if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI API error:", aiResponse.status, errorText);
+      console.error("AI API error");
       
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later" }), {
@@ -175,7 +174,7 @@ serve(async (req) => {
     }
 
     const aiResult = await aiResponse.json();
-    console.log("AI response received");
+    console.log("Insight extraction completed");
 
     // Parse tool call response
     let insights: any[] = [];
@@ -185,11 +184,11 @@ serve(async (req) => {
         const parsed = JSON.parse(toolCall.function.arguments);
         insights = parsed.insights || [];
       } catch (e) {
-        console.error("Failed to parse AI response:", e);
+        console.error("Failed to parse AI response");
       }
     }
 
-    console.log("Extracted insights:", insights.length);
+    console.log("Insights processed successfully");
 
     // Insert insights into database
     if (insights.length > 0) {
@@ -208,7 +207,7 @@ serve(async (req) => {
         .insert(insightRecords);
 
       if (insertError) {
-        console.error("Insert insights error:", insertError);
+        console.error("Failed to save insights");
       }
     }
 
@@ -218,7 +217,7 @@ serve(async (req) => {
       .update({ status: "ready" })
       .eq("id", recording_id);
 
-    console.log("Insight extraction complete for recording:", recording_id);
+    console.log("Recording processing completed");
 
     return new Response(
       JSON.stringify({ 
@@ -230,9 +229,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Extract insights function error:", error);
+    console.error("Insight extraction processing error");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "An error occurred during insight extraction" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
