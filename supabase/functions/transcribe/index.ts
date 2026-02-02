@@ -33,8 +33,11 @@ interface WhisperResponse {
 }
 
 Deno.serve(async (req: Request) => {
+  console.log("🎬 [EDGE] Transcribe function invoked");
+  
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
+    console.log("✈️ [EDGE] Handling CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -42,8 +45,14 @@ Deno.serve(async (req: Request) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
+  console.log("🔧 [EDGE] Environment check:", {
+    hasSupabaseUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseServiceKey,
+    hasLovableApiKey: !!lovableApiKey,
+  });
+
   if (!supabaseUrl || !supabaseServiceKey || !lovableApiKey) {
-    console.error("Missing required environment variables");
+    console.error("❌ [EDGE] Missing required environment variables");
     return new Response(
       JSON.stringify({ success: false, error: "Server configuration error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -51,15 +60,19 @@ Deno.serve(async (req: Request) => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  console.log("✅ [EDGE] Supabase client created");
 
   let recordingId: string | null = null;
 
   try {
     // Parse request body
+    console.log("📦 [EDGE] Parsing request body...");
     const body = await req.json();
     recordingId = body.recording_id;
+    console.log("🆔 [EDGE] Recording ID:", recordingId);
 
     if (!recordingId) {
+      console.error("❌ [EDGE] Missing recording_id in request body");
       return new Response(
         JSON.stringify({ success: false, error: "Missing recording_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -69,15 +82,16 @@ Deno.serve(async (req: Request) => {
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(recordingId)) {
+      console.error("❌ [EDGE] Invalid recording_id format:", recordingId);
       return new Response(
         JSON.stringify({ success: false, error: "Invalid recording_id format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    console.log("Processing transcription request");
+    console.log("✅ [EDGE] Recording ID format valid");
 
     // Fetch recording metadata
+    console.log("📝 [EDGE STEP 1] Fetching recording metadata from database...");
     const { data: recording, error: fetchError } = await supabase
       .from("recordings")
       .select("*")
@@ -85,27 +99,35 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (fetchError || !recording) {
-      console.error("Recording not found");
+      console.error("❌ [EDGE STEP 1] Recording not found:", fetchError);
       return new Response(
         JSON.stringify({ success: false, error: "Recording not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("✅ [EDGE STEP 1] Recording found:", {
+      id: recording.id,
+      filename: recording.filename,
+      file_path: recording.file_path,
+      file_size: recording.file_size,
+    });
 
     // Download audio file from storage
-    console.log("Downloading audio file from storage");
+    console.log("📥 [EDGE STEP 2] Downloading audio file from storage...");
+    console.log("📂 [EDGE STEP 2] File path:", recording.file_path);
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("recordings")
       .download(recording.file_path);
 
     if (downloadError || !fileData) {
-      console.error("Failed to download audio file");
+      console.error("❌ [EDGE STEP 2] Failed to download audio file:", downloadError);
       await updateRecordingStatus(supabase, recordingId, "failed", "Failed to download audio file");
       return new Response(
         JSON.stringify({ success: false, error: "Failed to download audio file" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("✅ [EDGE STEP 2] Audio file downloaded, size:", fileData.size);
 
     // Get the file extension and determine MIME type
     const fileExt = recording.filename.split('.').pop()?.toLowerCase() || 'mp3';
@@ -118,18 +140,26 @@ Deno.serve(async (req: Request) => {
       'mp4': 'audio/mp4',
     };
     const mimeType = mimeTypes[fileExt] || 'audio/mpeg';
+    console.log("📋 [EDGE STEP 3] File extension:", fileExt, "MIME type:", mimeType);
     
     // Create a proper File object from the Blob with correct MIME type
     const audioFile = new File([fileData], recording.filename, { type: mimeType });
+    console.log("📄 [EDGE STEP 3] Created File object:", {
+      name: audioFile.name,
+      type: audioFile.type,
+      size: audioFile.size,
+    });
     
     // Prepare FormData for Whisper API - explicitly pass filename for Deno compatibility
-    console.log("Sending audio to Whisper API, file size:", audioFile.size, "type:", mimeType, "filename:", recording.filename);
+    console.log("🎤 [EDGE STEP 4] Preparing FormData for Whisper API...");
     const formData = new FormData();
     formData.append("file", audioFile, recording.filename);
     formData.append("model", "whisper-1");
     formData.append("response_format", "verbose_json");
+    console.log("✅ [EDGE STEP 4] FormData prepared with filename:", recording.filename);
 
     // Call Lovable AI Gateway for transcription
+    console.log("🌐 [EDGE STEP 5] Calling Whisper API...");
     const whisperResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/audio/transcriptions",
       {
@@ -140,10 +170,11 @@ Deno.serve(async (req: Request) => {
         body: formData,
       }
     );
+    console.log("📡 [EDGE STEP 5] Whisper API response status:", whisperResponse.status);
 
     if (!whisperResponse.ok) {
       const errorText = await whisperResponse.text();
-      console.error("Whisper API error:", whisperResponse.status, "Response:", errorText);
+      console.error("❌ [EDGE STEP 5] Whisper API error:", whisperResponse.status, "Response:", errorText);
       await updateRecordingStatus(supabase, recordingId, "failed", `Transcription service error: ${whisperResponse.status}`);
       return new Response(
         JSON.stringify({ success: false, error: "Transcription failed", details: errorText }),
@@ -152,23 +183,31 @@ Deno.serve(async (req: Request) => {
     }
 
     const whisperData: WhisperResponse = await whisperResponse.json();
-    console.log("Transcription complete, processing speaker diarization");
+    console.log("✅ [EDGE STEP 5] Transcription complete!");
+    console.log("📊 [EDGE STEP 5] Whisper response:", {
+      textLength: whisperData.text?.length,
+      segmentCount: whisperData.segments?.length,
+      duration: whisperData.duration,
+    });
 
     // Get duration from Whisper response or calculate from segments
     let durationSeconds = whisperData.duration;
     if (!durationSeconds && whisperData.segments && whisperData.segments.length > 0) {
       durationSeconds = whisperData.segments[whisperData.segments.length - 1].end;
     }
+    console.log("⏱️ [EDGE] Duration seconds:", durationSeconds);
 
     // Perform speaker diarization using AI chat
+    console.log("🗣️ [EDGE STEP 6] Performing speaker diarization...");
     const speakerSegments = await performSpeakerDiarization(
       lovableApiKey,
       whisperData.text,
       whisperData.segments || []
     );
+    console.log("✅ [EDGE STEP 6] Speaker diarization complete, segments:", speakerSegments.length);
 
     // Update recording with transcript and segments
-    console.log("Updating recording with transcript");
+    console.log("💾 [EDGE STEP 7] Updating recording with transcript...");
     const { error: updateError } = await supabase
       .from("recordings")
       .update({
@@ -181,14 +220,15 @@ Deno.serve(async (req: Request) => {
       .eq("id", recordingId);
 
     if (updateError) {
-      console.error("Failed to update recording");
+      console.error("❌ [EDGE STEP 7] Failed to update recording:", updateError);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to save transcript" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("✅ [EDGE STEP 7] Recording updated successfully");
 
-    console.log("Transcription completed successfully");
+    console.log("🎉 [EDGE] Transcription completed successfully!");
 
     return new Response(
       JSON.stringify({
@@ -200,7 +240,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Transcription error occurred");
+    console.error("💥 [EDGE] Unexpected error occurred:", error);
     
     // Update recording status to failed if we have a recording ID
     if (recordingId) {

@@ -48,27 +48,41 @@ export function useRecordings() {
       file: File;
       onProgress?: (progress: number) => void;
     }) => {
-      if (!user) throw new Error("Not authenticated");
+      console.log("🚀 [UPLOAD] Starting upload process...");
+      console.log("📁 [UPLOAD] File details:", { name: file.name, type: file.type, size: file.size });
+      
+      if (!user) {
+        console.error("❌ [UPLOAD] User not authenticated");
+        throw new Error("Not authenticated");
+      }
+      console.log("✅ [UPLOAD] User authenticated:", user.id);
 
       // Validate file type
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        console.error("❌ [UPLOAD] Invalid file type:", file.type);
         throw new Error(
           "Invalid file type. Please upload an MP3, WAV, M4A, WebM, or OGG file."
         );
       }
+      console.log("✅ [UPLOAD] File type valid:", file.type);
 
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
+        console.error("❌ [UPLOAD] File too large:", file.size);
         throw new Error(
           `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`
         );
       }
+      console.log("✅ [UPLOAD] File size valid:", file.size);
 
       // Generate unique recording ID
       const recordingId = crypto.randomUUID();
       const filePath = `${user.id}/${recordingId}/${file.name}`;
+      console.log("🆔 [UPLOAD] Generated recording ID:", recordingId);
+      console.log("📂 [UPLOAD] File path:", filePath);
 
       // Step 1: Create recording record with 'uploading' status
+      console.log("📝 [STEP 1] Creating recording record in database...");
       onProgress?.(5);
       const { data: recording, error: insertError } = await supabase
         .from("recordings")
@@ -83,9 +97,14 @@ export function useRecordings() {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error("❌ [STEP 1] Failed to create recording record:", insertError);
+        throw insertError;
+      }
+      console.log("✅ [STEP 1] Recording record created:", recording.id);
 
       // Step 2: Upload file to storage
+      console.log("📤 [STEP 2] Uploading file to storage...");
       onProgress?.(15);
       const { error: uploadError } = await supabase.storage
         .from("recordings")
@@ -95,44 +114,73 @@ export function useRecordings() {
         });
 
       if (uploadError) {
+        console.error("❌ [STEP 2] Storage upload failed:", uploadError);
         // Clean up the recording record if upload fails
         await supabase.from("recordings").delete().eq("id", recordingId);
         throw uploadError;
       }
+      console.log("✅ [STEP 2] File uploaded to storage successfully");
 
       onProgress?.(85);
 
       // Step 3: Update recording status to 'transcribing'
+      console.log("🔄 [STEP 3] Updating recording status to 'transcribing'...");
       const { error: updateError } = await supabase
         .from("recordings")
         .update({ status: "transcribing" })
         .eq("id", recordingId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("❌ [STEP 3] Failed to update status:", updateError);
+        throw updateError;
+      }
+      console.log("✅ [STEP 3] Status updated to 'transcribing'");
 
       // Step 4: Trigger transcription edge function (fire and forget)
+      console.log("🎯 [STEP 4] Triggering transcription edge function...");
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      fetch(`${supabaseUrl}/functions/v1/transcribe`, {
+      const session = await supabase.auth.getSession();
+      console.log("🔑 [STEP 4] Got session token:", !!session.data.session?.access_token);
+      
+      const transcribeUrl = `${supabaseUrl}/functions/v1/transcribe`;
+      console.log("🌐 [STEP 4] Calling URL:", transcribeUrl);
+      
+      fetch(transcribeUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          Authorization: `Bearer ${session.data.session?.access_token}`,
         },
         body: JSON.stringify({ recording_id: recordingId }),
-      }).catch((err) => {
-        console.error("Failed to trigger transcription:", err);
-      });
+      })
+        .then(async (response) => {
+          const responseText = await response.text();
+          if (response.ok) {
+            console.log("✅ [STEP 4] Transcription function triggered successfully:", responseText);
+          } else {
+            console.error("❌ [STEP 4] Transcription function returned error:", response.status, responseText);
+          }
+        })
+        .catch((err) => {
+          console.error("❌ [STEP 4] Failed to trigger transcription:", err);
+        });
 
       onProgress?.(100);
+      console.log("🎉 [UPLOAD] Upload process complete!");
 
       // Fetch the updated recording to return
+      console.log("📥 [UPLOAD] Fetching updated recording...");
       const { data: updatedRecording, error: fetchError } = await supabase
         .from("recordings")
         .select("*")
         .eq("id", recordingId)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error("❌ [UPLOAD] Failed to fetch updated recording:", fetchError);
+        throw fetchError;
+      }
+      console.log("✅ [UPLOAD] Got updated recording:", updatedRecording.id);
 
       return updatedRecording as Recording;
     },
