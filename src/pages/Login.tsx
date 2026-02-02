@@ -34,10 +34,8 @@ export default function Login() {
             variant: "destructive",
           });
         } else {
-          toast({
-            title: "Check your email",
-            description: "We sent you a confirmation link to verify your account.",
-          });
+          // Auto-confirm enabled, redirect immediately
+          navigate(from, { replace: true });
         }
       } else {
         const { error } = await signIn(email, password);
