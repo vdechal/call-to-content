@@ -19,11 +19,19 @@
 
 ## Phase 1: Core Foundations (Week 1-2)
 
-### Task 1.1: Enable Lovable Cloud ✅
-- [ ] **1.1.1** Enable Lovable Cloud backend
-- [ ] **1.1.2** Verify database, auth, storage, and edge functions are available
+### Task 1.1: Enable Lovable Cloud ✅ COMPLETED
+- [x] **1.1.1** Enable Lovable Cloud backend
+- [x] **1.1.2** Verify database, auth, storage, and edge functions are available
 
-**Verification:** Cloud tab shows active status with all features enabled.
+**Verification:** Cloud tab shows active status with all features enabled. ✅
+
+---
+
+### Task 1.2: Database Schema Setup ✅ COMPLETED
+> All tables (profiles, recordings, insights, post_drafts) created with RLS policies.
+
+### Task 1.3: Storage Bucket Setup ✅ COMPLETED
+> recordings bucket configured with 100MB limit and RLS policies.
 
 ---
 
