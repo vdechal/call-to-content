@@ -324,46 +324,27 @@ Update `src/components/dashboard/UploadZone.tsx`:
 
 ---
 
-### Task 2.2: Transcription Edge Function
+### Task 2.2: Transcription Edge Function ✅ COMPLETED
 
-#### 2.2.1 Create Transcription Function
-Create `supabase/functions/transcribe/index.ts`:
+#### 2.2.1 Create Transcription Function ✅
+- [x] Created `supabase/functions/transcribe/index.ts`
+- [x] Receives recording_id, fetches audio from storage
+- [x] Calls Lovable AI Gateway Whisper API for transcription
+- [x] Performs speaker diarization using AI chat (Gemini)
+- [x] Updates recording with transcript_text, speaker_segments, duration_seconds
+- [x] Updates status to 'analyzing' on success, 'failed' on error
+- [x] Comprehensive error handling and fallback diarization
 
-```typescript
-// Edge function flow:
-// 1. Receive recording_id
-// 2. Fetch audio file from storage
-// 3. Call Lovable AI with Whisper model
-// 4. Parse transcript with speaker segments
-// 5. Update recording with transcript_text and speaker_segments
-// 6. Update status to 'analyzing'
-// 7. Trigger insight extraction
+#### 2.2.2 Client Integration ✅
+- [x] Updated `src/hooks/useRecordings.ts` to trigger transcription after upload
+- [x] Fire-and-forget call to edge function
+- [x] Error handling for transcription trigger
 
-// Speaker segments format:
-interface SpeakerSegment {
-  speaker: string; // "Speaker 1", "Speaker 2"
-  start: number;   // seconds
-  end: number;     // seconds
-  text: string;
-}
-```
-
-#### 2.2.2 Whisper API Integration via Lovable AI
-```typescript
-// Use Lovable AI gateway for Whisper
-const response = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-    "Content-Type": "multipart/form-data"
-  },
-  body: formData // Contains audio file
-});
-```
-
-**Note:** If Whisper endpoint not available via gateway, use chunked approach:
-1. Convert audio to text segments using speech-to-text
-2. Use Lovable AI chat to identify speakers and segment transcript
+**Verification:**
+1. Upload an audio file from dashboard
+2. Check status changes: uploading → transcribing → analyzing
+3. View edge function logs in Cloud backend
+4. Verify transcript_text and speaker_segments populated in database
 
 ---
 
