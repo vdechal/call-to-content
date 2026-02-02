@@ -340,6 +340,10 @@ Update `src/components/dashboard/UploadZone.tsx`:
 - [x] Fire-and-forget call to edge function
 - [x] Error handling for transcription trigger
 
+#### 2.2.3 Debug Logging ✅
+- [x] Added emoji-prefixed step logs in `src/components/dashboard/UploadZone.tsx` and `src/pages/Dashboard.tsx`
+- [x] Added trace-aware emoji logs (with masked IDs) across `supabase/functions/transcribe/index.ts`
+
 **Verification:**
 1. Upload an audio file from dashboard
 2. Check status changes: uploading → transcribing → analyzing
