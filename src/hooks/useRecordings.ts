@@ -100,19 +100,39 @@ export function useRecordings() {
         throw uploadError;
       }
 
-      onProgress?.(80);
+      onProgress?.(85);
 
-      // Step 3: Update recording status to 'uploaded' (ready for transcription)
-      const { data: updatedRecording, error: updateError } = await supabase
+      // Step 3: Update recording status to 'transcribing'
+      const { error: updateError } = await supabase
         .from("recordings")
         .update({ status: "transcribing" })
-        .eq("id", recordingId)
-        .select()
-        .single();
+        .eq("id", recordingId);
 
       if (updateError) throw updateError;
 
+      // Step 4: Trigger transcription edge function (fire and forget)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      fetch(`${supabaseUrl}/functions/v1/transcribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ recording_id: recordingId }),
+      }).catch((err) => {
+        console.error("Failed to trigger transcription:", err);
+      });
+
       onProgress?.(100);
+
+      // Fetch the updated recording to return
+      const { data: updatedRecording, error: fetchError } = await supabase
+        .from("recordings")
+        .select("*")
+        .eq("id", recordingId)
+        .single();
+
+      if (fetchError) throw fetchError;
 
       return updatedRecording as Recording;
     },
