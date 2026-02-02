@@ -1,19 +1,59 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, ArrowRight } from "lucide-react";
+import { Zap, ArrowRight, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the redirect path from location state, or default to dashboard
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Auth will be implemented with Lovable Cloud
-    console.log("Auth:", { email, password, isSignUp });
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(email, password);
+        if (error) {
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Check your email",
+            description: "We sent you a confirmation link to verify your account.",
+          });
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: "Sign in failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          navigate(from, { replace: true });
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,6 +88,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -61,12 +102,26 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-12"
                 required
+                disabled={loading}
+                minLength={6}
               />
             </div>
 
-            <Button type="submit" variant="accent" size="lg" className="w-full">
-              {isSignUp ? "Create account" : "Sign in"}
-              <ArrowRight className="w-4 h-4 ml-2" />
+            <Button 
+              type="submit" 
+              variant="accent" 
+              size="lg" 
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  {isSignUp ? "Create account" : "Sign in"}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </form>
 
@@ -77,6 +132,7 @@ export default function Login() {
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
                 className="text-accent font-semibold hover:underline"
+                disabled={loading}
               >
                 {isSignUp ? "Sign in" : "Sign up"}
               </button>
