@@ -14,16 +14,9 @@ interface SpeakerSegment {
 }
 
 interface WhisperSegment {
-  id: number;
-  seek: number;
   start: number;
   end: number;
   text: string;
-  tokens: number[];
-  temperature: number;
-  avg_logprob: number;
-  compression_ratio: number;
-  no_speech_prob: number;
 }
 
 interface WhisperResponse {
@@ -46,16 +39,16 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
 
   console.log("🔧 [EDGE] Environment check:", {
     traceId,
     hasSupabaseUrl: !!supabaseUrl,
     hasServiceKey: !!supabaseServiceKey,
-    hasLovableApiKey: !!lovableApiKey,
+    hasOpenAIKey: !!openaiApiKey,
   });
 
-  if (!supabaseUrl || !supabaseServiceKey || !lovableApiKey) {
+  if (!supabaseUrl || !supabaseServiceKey || !openaiApiKey) {
     console.error("❌ [EDGE] Missing required environment variables");
     return new Response(
       JSON.stringify({ success: false, error: "Server configuration error" }),
@@ -146,40 +139,25 @@ Deno.serve(async (req: Request) => {
     };
     const mimeType = mimeTypes[fileExt] || 'audio/mpeg';
     console.log("📋 [EDGE STEP 3] File extension:", fileExt, "MIME type:", mimeType, { traceId });
-    
-    // Create a proper File object from the Blob with correct MIME type
+
+    // Create FormData for OpenAI Whisper API (using direct fetch, not SDK)
+    console.log("🎤 [EDGE STEP 4] Preparing request for OpenAI Whisper API...", { traceId });
     const audioFile = new File([fileData], recording.filename, { type: mimeType });
-    console.log("📄 [EDGE STEP 3] Created File object:", {
-      traceId,
-      name: audioFile.name,
-      type: audioFile.type,
-      size: audioFile.size,
-    });
-    
-    // Prepare FormData for Whisper API - explicitly pass filename for Deno compatibility
-    console.log("🎤 [EDGE STEP 4] Preparing FormData for Whisper API...", { traceId });
     const formData = new FormData();
     formData.append("file", audioFile, recording.filename);
     formData.append("model", "whisper-1");
     formData.append("response_format", "verbose_json");
-    console.log("✅ [EDGE STEP 4] FormData prepared with filename:", recording.filename, {
-      traceId,
-      hasFile: !!formData.get("file"),
-      keys: Array.from(formData.keys()),
-    });
+    console.log("✅ [EDGE STEP 4] FormData prepared with filename:", recording.filename, { traceId });
 
-    // Call Lovable AI Gateway for transcription
-    console.log("🌐 [EDGE STEP 5] Calling Whisper API...", { traceId });
-    const whisperResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-        },
-        body: formData,
-      }
-    );
+    // Call OpenAI Whisper API directly via fetch
+    console.log("🌐 [EDGE STEP 5] Calling OpenAI Whisper API...", { traceId });
+    const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiApiKey}`,
+      },
+      body: formData,
+    });
     console.log("📡 [EDGE STEP 5] Whisper API response status:", whisperResponse.status, { traceId });
 
     if (!whisperResponse.ok) {
@@ -211,7 +189,7 @@ Deno.serve(async (req: Request) => {
     // Perform speaker diarization using AI chat
     console.log("🗣️ [EDGE STEP 6] Performing speaker diarization...", { traceId });
     const speakerSegments = await performSpeakerDiarization(
-      lovableApiKey,
+      openaiApiKey,
       whisperData.text,
       whisperData.segments || []
     );
@@ -251,16 +229,17 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("💥 [EDGE] Unexpected error occurred:", error, { traceId, recordingId: maskId(recordingId) });
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    console.error("💥 [EDGE] Unexpected error occurred:", errorMessage, { traceId, recordingId: maskId(recordingId) });
     
     // Update recording status to failed if we have a recording ID
     if (recordingId) {
       const supabaseForError = createClient(supabaseUrl!, supabaseServiceKey!);
-      await updateRecordingStatus(supabaseForError, recordingId, "failed", "An unexpected error occurred");
+      await updateRecordingStatus(supabaseForError, recordingId, "failed", errorMessage);
     }
 
     return new Response(
-      JSON.stringify({ success: false, error: "An unexpected error occurred" }),
+      JSON.stringify({ success: false, error: "An unexpected error occurred", details: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -308,7 +287,7 @@ async function performSpeakerDiarization(
     const segmentData = segments.map((s) => ({
       start: s.start,
       end: s.end,
-      text: s.text.trim(),
+      text: s.text?.trim() || "",
     }));
 
     const diarizationPrompt = `You are analyzing a conversation transcript to identify different speakers.
@@ -331,27 +310,21 @@ Return a JSON array where each item has:
 Combine consecutive segments from the same speaker into a single segment.
 Return ONLY valid JSON, no other text.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "user",
-            content: diarizationPrompt,
-          },
-        ],
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: diarizationPrompt }],
         temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
       console.error("Speaker diarization API error");
-      // Fall back to alternating speakers
       return createFallbackSegments(segments);
     }
 
@@ -384,14 +357,13 @@ Return ONLY valid JSON, no other text.`;
 
     return createFallbackSegments(segments);
   } catch (error) {
-    console.error("Speaker diarization failed, using fallback");
+    console.error("Speaker diarization failed, using fallback:", error);
     return createFallbackSegments(segments);
   }
 }
 
 function createFallbackSegments(segments: WhisperSegment[]): SpeakerSegment[] {
   // Simple fallback: group consecutive segments and alternate speakers
-  // This is a basic heuristic when AI diarization fails
   const result: SpeakerSegment[] = [];
   let currentSpeaker = 1;
   let currentSegment: SpeakerSegment | null = null;
@@ -410,19 +382,19 @@ function createFallbackSegments(segments: WhisperSegment[]): SpeakerSegment[] {
         speaker: `Speaker ${currentSpeaker}`,
         start: segment.start,
         end: segment.end,
-        text: segment.text.trim(),
+        text: segment.text?.trim() || "",
       };
     } else if (currentSegment) {
       // Extend current segment
       currentSegment.end = segment.end;
-      currentSegment.text += " " + segment.text.trim();
+      currentSegment.text += " " + (segment.text?.trim() || "");
     } else {
       // First segment
       currentSegment = {
         speaker: `Speaker ${currentSpeaker}`,
         start: segment.start,
         end: segment.end,
-        text: segment.text.trim(),
+        text: segment.text?.trim() || "",
       };
     }
   }
@@ -435,6 +407,6 @@ function createFallbackSegments(segments: WhisperSegment[]): SpeakerSegment[] {
     speaker: "Speaker 1",
     start: 0,
     end: segments[segments.length - 1]?.end || 0,
-    text: segments.map(s => s.text.trim()).join(" "),
+    text: segments.map(s => s.text?.trim() || "").join(" "),
   }];
 }
