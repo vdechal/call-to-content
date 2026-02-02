@@ -107,10 +107,25 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Get the file extension and determine MIME type
+    const fileExt = recording.filename.split('.').pop()?.toLowerCase() || 'mp3';
+    const mimeTypes: Record<string, string> = {
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'm4a': 'audio/mp4',
+      'webm': 'audio/webm',
+      'ogg': 'audio/ogg',
+      'mp4': 'audio/mp4',
+    };
+    const mimeType = mimeTypes[fileExt] || 'audio/mpeg';
+    
+    // Create a proper File object from the Blob with correct MIME type
+    const audioFile = new File([fileData], recording.filename, { type: mimeType });
+    
     // Prepare FormData for Whisper API
-    console.log("Sending audio to Whisper API");
+    console.log("Sending audio to Whisper API, file size:", audioFile.size, "type:", mimeType);
     const formData = new FormData();
-    formData.append("file", fileData, recording.filename);
+    formData.append("file", audioFile);
     formData.append("model", "whisper-1");
     formData.append("response_format", "verbose_json");
 
