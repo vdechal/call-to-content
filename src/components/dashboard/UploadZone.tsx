@@ -1,11 +1,43 @@
 import { useState, useCallback } from "react";
-import { Upload, FileAudio, X } from "lucide-react";
+import { Upload, FileAudio, X, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { useRecordings } from "@/hooks/useRecordings";
+
+const MAX_FILE_SIZE_MB = 100;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export function UploadZone() {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const { upload, isUploading } = useRecordings();
+
+  const validateFile = (file: File): string | null => {
+    const allowedTypes = [
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/m4a",
+      "audio/x-m4a",
+      "audio/mp4",
+      "audio/webm",
+      "audio/ogg",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      return "Invalid file type. Please upload an MP3, WAV, M4A, WebM, or OGG file.";
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return `File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`;
+    }
+
+    return null;
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -20,23 +52,60 @@ export function UploadZone() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+    setValidationError(null);
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      setUploadedFile(files[0]);
+      const file = files[0];
+      const error = validateFile(file);
+      if (error) {
+        setValidationError(error);
+        return;
+      }
+      setSelectedFile(file);
     }
   }, []);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setUploadedFile(files[0]);
-    }
-  }, []);
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setValidationError(null);
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        const error = validateFile(file);
+        if (error) {
+          setValidationError(error);
+          return;
+        }
+        setSelectedFile(file);
+      }
+    },
+    []
+  );
 
   const removeFile = useCallback(() => {
-    setUploadedFile(null);
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setValidationError(null);
   }, []);
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setUploadProgress(0);
+      await upload({
+        file: selectedFile,
+        onProgress: (progress) => setUploadProgress(progress),
+      });
+      // Reset after successful upload
+      setSelectedFile(null);
+      setUploadProgress(0);
+    } catch (error) {
+      // Error is handled by the mutation
+      setUploadProgress(0);
+    }
+  };
 
   return (
     <div
@@ -45,30 +114,65 @@ export function UploadZone() {
         isDragging
           ? "border-accent bg-accent/5 scale-[1.02]"
           : "border-border bg-card hover:border-accent/50 hover:bg-card/80",
-        uploadedFile && "border-success bg-success/5"
+        selectedFile && !isUploading && "border-success bg-success/5",
+        isUploading && "border-accent bg-accent/5",
+        validationError && "border-destructive bg-destructive/5"
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <input
-        type="file"
-        accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm"
-        onChange={handleFileSelect}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        id="file-upload"
-      />
+      {!isUploading && !selectedFile && (
+        <input
+          type="file"
+          accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm"
+          onChange={handleFileSelect}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          id="file-upload"
+        />
+      )}
 
       <div className="p-10 text-center">
-        {uploadedFile ? (
+        {validationError ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-destructive" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold mb-2 text-destructive">
+                Invalid file
+              </h3>
+              <p className="text-muted-foreground mb-4">{validationError}</p>
+              <Button variant="outline" onClick={() => setValidationError(null)}>
+                Try again
+              </Button>
+            </div>
+          </div>
+        ) : isUploading ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-accent animate-spin" />
+            </div>
+            <div className="w-full max-w-xs">
+              <h3 className="text-xl font-bold mb-2">Uploading...</h3>
+              <Progress value={uploadProgress} className="h-2 mb-2" />
+              <p className="text-sm text-muted-foreground">
+                {uploadProgress < 15 && "Creating record..."}
+                {uploadProgress >= 15 && uploadProgress < 80 && "Uploading file..."}
+                {uploadProgress >= 80 && uploadProgress < 100 && "Finalizing..."}
+                {uploadProgress === 100 && "Complete!"}
+              </p>
+            </div>
+          </div>
+        ) : selectedFile ? (
           <div className="flex items-center justify-center gap-4">
             <div className="w-14 h-14 rounded-xl bg-success/20 flex items-center justify-center">
               <FileAudio className="w-7 h-7 text-success" />
             </div>
             <div className="text-left">
-              <p className="font-semibold text-foreground">{uploadedFile.name}</p>
+              <p className="font-semibold text-foreground">{selectedFile.name}</p>
               <p className="text-sm text-muted-foreground">
-                {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
               </p>
             </div>
             <Button
@@ -86,10 +190,12 @@ export function UploadZone() {
         ) : (
           <>
             <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-6">
-              <Upload className={cn(
-                "w-8 h-8 transition-colors duration-200",
-                isDragging ? "text-accent" : "text-muted-foreground"
-              )} />
+              <Upload
+                className={cn(
+                  "w-8 h-8 transition-colors duration-200",
+                  isDragging ? "text-accent" : "text-muted-foreground"
+                )}
+              />
             </div>
             <h3 className="text-xl font-bold mb-2">
               {isDragging ? "Drop your call here" : "Upload your call recording"}
@@ -98,15 +204,20 @@ export function UploadZone() {
               Drag and drop an audio file, or click to browse
             </p>
             <p className="text-sm text-muted-foreground">
-              Supports MP3, WAV, M4A, OGG, WebM • Max 500MB
+              Supports MP3, WAV, M4A, OGG, WebM • Max {MAX_FILE_SIZE_MB}MB
             </p>
           </>
         )}
       </div>
 
-      {uploadedFile && (
+      {selectedFile && !isUploading && !validationError && (
         <div className="px-10 pb-6">
-          <Button variant="accent" className="w-full" size="lg">
+          <Button
+            variant="accent"
+            className="w-full"
+            size="lg"
+            onClick={handleUpload}
+          >
             Start Processing
           </Button>
         </div>

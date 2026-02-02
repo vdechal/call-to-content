@@ -278,6 +278,25 @@ create policy "Users can delete own recordings"
 
 ## Phase 2: Transcription Workflow (Week 2-3)
 
+### Task 2.1: File Upload Pipeline ✅ COMPLETED
+
+#### 2.1.1 Update UploadZone Component ✅
+- [x] Real file upload to Supabase Storage
+- [x] Progress tracking with percentage
+- [x] File validation (type, size ≤100MB)
+- [x] Create recording record in database
+- [x] Handle upload errors gracefully
+
+**Files created:**
+- `src/hooks/useRecordings.ts` - Hook for recordings CRUD + upload mutation
+- Updated `src/components/dashboard/UploadZone.tsx` - Real uploads with progress
+- Updated `src/components/dashboard/TranscriptCard.tsx` - Uses Recording type
+- Updated `src/pages/Dashboard.tsx` - Fetches real recordings from database
+
+---
+
+## Phase 2: Transcription Workflow (Week 2-3)
+
 ### Task 2.1: File Upload Pipeline
 
 #### 2.1.1 Update UploadZone Component
