@@ -1,40 +1,19 @@
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, ArrowRight, Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Zap, ArrowRight } from "lucide-react";
 
 export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const { signIn, signUp } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  // Get the redirect location or default to dashboard
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      if (isSignUp) {
-        await signUp(email, password);
-      } else {
-        await signIn(email, password);
-      }
-      navigate(from, { replace: true });
-    } catch (error) {
-      // Error is handled in AuthContext with toast
-    } finally {
-      setIsLoading(false);
-    }
+    // Auth will be implemented with Lovable Cloud
+    console.log("Auth:", { email, password, isSignUp });
   };
 
   return (
@@ -69,7 +48,6 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12"
                 required
-                disabled={isLoading}
               />
             </div>
 
@@ -83,34 +61,12 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-12"
                 required
-                minLength={6}
-                disabled={isLoading}
               />
-              {isSignUp && (
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 6 characters
-                </p>
-              )}
             </div>
 
-            <Button 
-              type="submit" 
-              variant="accent" 
-              size="lg" 
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isSignUp ? "Creating account..." : "Signing in..."}
-                </>
-              ) : (
-                <>
-                  {isSignUp ? "Create account" : "Sign in"}
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
+            <Button type="submit" variant="accent" size="lg" className="w-full">
+              {isSignUp ? "Create account" : "Sign in"}
+              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </form>
 
@@ -121,7 +77,6 @@ export default function Login() {
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
                 className="text-accent font-semibold hover:underline"
-                disabled={isLoading}
               >
                 {isSignUp ? "Sign in" : "Sign up"}
               </button>

@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, Mic, FileText, Sparkles } from "lucide-react";
+
 export function HeroSection() {
-  return <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-secondary/30" />
       
@@ -23,7 +25,7 @@ export function HeroSection() {
           {/* Main headline */}
           <h1 className="animate-fade-up-delay-1 mb-6">
             Turn calls into{" "}
-            <span className="gradient-text">LinkedIn posts.</span>
+            <span className="gradient-text">clients.</span>
           </h1>
 
           {/* Subheadline */}
@@ -57,32 +59,40 @@ export function HeroSection() {
           </div>
         </div>
       </div>
-    </section>;
+    </section>
+  );
 }
-function FlowStep({
-  icon,
-  label
-}: {
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return <div className="flex flex-col items-center gap-3">
+
+function FlowStep({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3">
       <div className="w-16 h-16 rounded-2xl bg-card border border-border/50 shadow-md flex items-center justify-center text-primary">
         {icon}
       </div>
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
-    </div>;
+    </div>
+  );
 }
+
 function FlowArrow() {
-  return <div className="hidden sm:flex items-center">
+  return (
+    <div className="hidden sm:flex items-center">
       <div className="w-12 h-0.5 bg-border" />
       <div className="w-0 h-0 border-t-4 border-b-4 border-l-6 border-t-transparent border-b-transparent border-l-border" />
-    </div>;
+    </div>
+  );
 }
+
 function WaveformIcon() {
-  return <div className="flex items-end gap-0.5 h-6">
-      {[1, 2, 3, 4, 5].map(i => <div key={i} className="waveform-bar w-1 bg-accent rounded-full" style={{
-      height: "40%"
-    }} />)}
-    </div>;
+  return (
+    <div className="flex items-end gap-0.5 h-6">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className="waveform-bar w-1 bg-accent rounded-full"
+          style={{ height: "40%" }}
+        />
+      ))}
+    </div>
+  );
 }
