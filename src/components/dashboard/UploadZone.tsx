@@ -14,6 +14,8 @@ export function UploadZone() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const traceId = crypto.randomUUID().slice(0, 8);
+
   const { upload, isUploading } = useRecordings();
 
   const validateFile = (file: File): string | null => {
@@ -29,39 +31,67 @@ export function UploadZone() {
     ];
 
     if (!allowedTypes.includes(file.type)) {
+      console.log("❌🎧 [UPLOAD_ZONE] Invalid file type", {
+        traceId,
+        name: file.name,
+        type: file.type,
+      });
       return "Invalid file type. Please upload an MP3, WAV, M4A, WebM, or OGG file.";
     }
 
     if (file.size > MAX_FILE_SIZE) {
+      console.log("❌📦 [UPLOAD_ZONE] File too large", {
+        traceId,
+        name: file.name,
+        size: file.size,
+        max: MAX_FILE_SIZE,
+      });
       return `File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`;
     }
 
+    console.log("✅📁 [UPLOAD_ZONE] File validated", {
+      traceId,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
     return null;
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    console.log("🧲 [UPLOAD_ZONE] Drag over", { traceId });
     setIsDragging(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    console.log("🫥 [UPLOAD_ZONE] Drag leave", { traceId });
     setIsDragging(false);
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    console.log("📥 [UPLOAD_ZONE] Drop", { traceId });
     setIsDragging(false);
     setValidationError(null);
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
+      console.log("📄 [UPLOAD_ZONE] Dropped file", {
+        traceId,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
       const error = validateFile(file);
       if (error) {
+        console.log("❌ [UPLOAD_ZONE] Validation error", { traceId, error });
         setValidationError(error);
         return;
       }
+      console.log("✅ [UPLOAD_ZONE] File selected from drop", { traceId });
       setSelectedFile(file);
     }
   }, []);
@@ -72,11 +102,19 @@ export function UploadZone() {
       const files = e.target.files;
       if (files && files.length > 0) {
         const file = files[0];
+        console.log("🖱️📄 [UPLOAD_ZONE] File selected", {
+          traceId,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
         const error = validateFile(file);
         if (error) {
+          console.log("❌ [UPLOAD_ZONE] Validation error", { traceId, error });
           setValidationError(error);
           return;
         }
+        console.log("✅ [UPLOAD_ZONE] File set", { traceId });
         setSelectedFile(file);
       }
     },
@@ -84,24 +122,49 @@ export function UploadZone() {
   );
 
   const removeFile = useCallback(() => {
+    console.log("🧹 [UPLOAD_ZONE] Remove file", {
+      traceId,
+      hadFile: !!selectedFile,
+      name: selectedFile?.name,
+    });
     setSelectedFile(null);
     setUploadProgress(0);
     setValidationError(null);
-  }, []);
+  }, [selectedFile, traceId]);
 
   const handleUpload = async () => {
     if (!selectedFile) return;
 
     try {
+      console.log("🚀 [UPLOAD_ZONE] Start processing", {
+        traceId,
+        name: selectedFile.name,
+        type: selectedFile.type,
+        size: selectedFile.size,
+      });
       setUploadProgress(0);
       await upload({
         file: selectedFile,
-        onProgress: (progress) => setUploadProgress(progress),
+        onProgress: (progress) => {
+          // Keep this log lightweight; progress can be very chatty.
+          if (progress === 5 || progress === 15 || progress === 85 || progress === 100) {
+            console.log("📈 [UPLOAD_ZONE] Progress", { traceId, progress });
+          }
+          setUploadProgress(progress);
+        },
+      });
+
+      console.log("🎉 [UPLOAD_ZONE] Upload finished (transcription trigger requested)", {
+        traceId,
       });
       // Reset after successful upload
       setSelectedFile(null);
       setUploadProgress(0);
     } catch (error) {
+      console.log("💥 [UPLOAD_ZONE] Upload failed (mutation handles toast)", {
+        traceId,
+        error,
+      });
       // Error is handled by the mutation
       setUploadProgress(0);
     }

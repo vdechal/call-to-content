@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { UploadZone } from "@/components/dashboard/UploadZone";
 import { TranscriptCard } from "@/components/dashboard/TranscriptCard";
@@ -17,10 +17,29 @@ export default function Dashboard() {
     r.status === "uploading" || r.status === "transcribing" || r.status === "analyzing"
   );
 
+  const statusSummary = useMemo(() => {
+    const summary: Record<string, number> = {};
+    for (const r of recordings) {
+      const key = r.status ?? "unknown";
+      summary[key] = (summary[key] ?? 0) + 1;
+    }
+    return summary;
+  }, [recordings]);
+
+  useEffect(() => {
+    console.log("📊 [DASHBOARD] Recordings query updated", {
+      total: recordings.length,
+      isLoading,
+      statusSummary,
+    });
+  }, [recordings.length, isLoading, statusSummary]);
+
   const handleDelete = async (id: string) => {
+    console.log("🗑️ [DASHBOARD] Delete requested", { idMasked: id.slice(0, 8) + "…" });
     setDeletingId(id);
     try {
       await deleteRecording(id);
+      console.log("✅🗑️ [DASHBOARD] Delete succeeded", { idMasked: id.slice(0, 8) + "…" });
     } finally {
       setDeletingId(null);
     }
