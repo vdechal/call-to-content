@@ -352,20 +352,22 @@ Update `src/components/dashboard/UploadZone.tsx`:
 
 ---
 
-### Task 2.3: Transcript Display
+### Task 2.3: Transcript Display ✅ COMPLETED
 
-#### 2.3.1 Create Transcript Viewer Component
-Create `src/components/transcript/TranscriptViewer.tsx`:
-- Display full transcript with speaker labels
-- Color-code different speakers
-- Highlight extracted insights inline
-- Click insight to jump to that section
-- Show timestamps
+#### 2.3.1 Create Transcript Viewer Component ✅
+- [x] Created `src/components/transcript/TranscriptViewer.tsx`
+- [x] Display full transcript with speaker labels
+- [x] Color-code different speakers (4-color palette using design tokens)
+- [x] Highlight extracted insights inline with badges
+- [x] Click insight to trigger callback
+- [x] Show timestamps in MM:SS format
+- [x] Created `src/hooks/useRecording.ts` for fetching single recording + insights
+- [x] Created `src/pages/Transcript.tsx` as dedicated transcript view page
+- [x] Added `/transcript/:id` route to App.tsx
 
-#### 2.3.2 Update Dashboard TranscriptCard
-- Show insight count badge
-- Show "View Transcript" action
-- Quick preview of first insight
+#### 2.3.2 Update Dashboard TranscriptCard ✅
+- [x] Added "View Transcript" button linking to `/transcript/:id`
+- [x] Kept existing "View Posts" button for editor access
 
 ---
 
