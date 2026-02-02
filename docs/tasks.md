@@ -260,36 +260,15 @@ create policy "Users can delete own recordings"
 
 ---
 
-### Task 1.4: Authentication Implementation
+### Task 1.4: Authentication Implementation ✅ COMPLETED
 > Reference: [app-flow-pages-and-roles.md](./app-flow-pages-and-roles.md)
 
-#### 1.4.1 Auth Context & Provider
-Create `src/contexts/AuthContext.tsx`:
-- `useAuth()` hook exposing user, session, loading states
-- `signUp(email, password)` function
-- `signIn(email, password)` function  
-- `signOut()` function
-- Auto-redirect based on auth state
+- [x] **1.4.1** AuthContext & Provider created (`src/contexts/AuthContext.tsx`)
+- [x] **1.4.2** ProtectedRoute component created (`src/components/auth/ProtectedRoute.tsx`)
+- [x] **1.4.3** Login page connected to Supabase Auth with error handling
+- [x] **1.4.4** Navbar updated with user avatar dropdown and sign out
 
-#### 1.4.2 Protected Route Component
-Create `src/components/auth/ProtectedRoute.tsx`:
-- Wrap dashboard and editor routes
-- Redirect to `/login` if not authenticated
-- Show loading state during auth check
-
-#### 1.4.3 Update Login Page
-Update `src/pages/Login.tsx`:
-- Connect to Supabase auth
-- Handle signup/login errors with toast notifications
-- Redirect to dashboard on success
-
-#### 1.4.4 Update Navbar
-Update `src/components/layout/Navbar.tsx`:
-- Show user email/avatar when logged in
-- Show logout button
-- Show login/signup when logged out
-
-**Verification:** 
+**Verification:**
 - Can create account with email/password
 - Can login and see dashboard
 - Cannot access /dashboard without login
