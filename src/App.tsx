@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Editor from "./pages/Editor";
+import Transcript from "./pages/Transcript";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Editor />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/transcript/:id" 
+              element={
+                <ProtectedRoute>
+                  <Transcript />
                 </ProtectedRoute>
               } 
             />

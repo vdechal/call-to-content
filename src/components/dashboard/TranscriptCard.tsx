@@ -72,16 +72,27 @@ export function TranscriptCard({ recording, onDelete, isDeleting }: TranscriptCa
               <span className="text-sm">{statusInfo.label}...</span>
             </div>
           ) : recording.status === "ready" ? (
-            <Button
-              variant="default"
-              asChild
-              className="group-hover:bg-accent group-hover:text-accent-foreground transition-colors"
-            >
-              <Link to={`/editor/${recording.id}`}>
-                View Posts
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                asChild
+                size="sm"
+              >
+                <Link to={`/transcript/${recording.id}`}>
+                  View Transcript
+                </Link>
+              </Button>
+              <Button
+                variant="default"
+                asChild
+                className="group-hover:bg-accent group-hover:text-accent-foreground transition-colors"
+              >
+                <Link to={`/editor/${recording.id}`}>
+                  View Posts
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </Button>
+            </>
           ) : null}
 
           {onDelete && (
