@@ -122,10 +122,10 @@ Deno.serve(async (req: Request) => {
     // Create a proper File object from the Blob with correct MIME type
     const audioFile = new File([fileData], recording.filename, { type: mimeType });
     
-    // Prepare FormData for Whisper API
-    console.log("Sending audio to Whisper API, file size:", audioFile.size, "type:", mimeType);
+    // Prepare FormData for Whisper API - explicitly pass filename for Deno compatibility
+    console.log("Sending audio to Whisper API, file size:", audioFile.size, "type:", mimeType, "filename:", recording.filename);
     const formData = new FormData();
-    formData.append("file", audioFile);
+    formData.append("file", audioFile, recording.filename);
     formData.append("model", "whisper-1");
     formData.append("response_format", "verbose_json");
 
@@ -143,10 +143,10 @@ Deno.serve(async (req: Request) => {
 
     if (!whisperResponse.ok) {
       const errorText = await whisperResponse.text();
-      console.error("Whisper API error:", whisperResponse.status);
-      await updateRecordingStatus(supabase, recordingId, "failed", "Transcription service error");
+      console.error("Whisper API error:", whisperResponse.status, "Response:", errorText);
+      await updateRecordingStatus(supabase, recordingId, "failed", `Transcription service error: ${whisperResponse.status}`);
       return new Response(
-        JSON.stringify({ success: false, error: "Transcription failed" }),
+        JSON.stringify({ success: false, error: "Transcription failed", details: errorText }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
